@@ -1,63 +1,16 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 
-import Control.Applicative
-import Control.Monad.Fail
-import Control.Monad.Trans
 import Control.Monad.RWS.Lazy
-import Data.Char
 import Data.DList (DList)
 import qualified Data.DList as DList
 import Data.List
+import Data.Char
+import System.Environment
 
-pop :: (MonadState [a] m, MonadFail m) => m a
-pop = do
-    x:xs <- get
-    put xs
-    pure x
+import Stack
+import Lang
 
-push :: MonadState [a] m => a -> m ()
-push x = state $ \xs -> ((), x:xs)
-
-pushn :: MonadState [a] m => [a] -> m ()
-pushn ys = state $ \xs -> ((), ys ++ xs)
-
-peek :: (MonadState [a] m, MonadFail m) => m a
-peek = do
-    x <- pop
-    push x
-    pure x
-
-isempty :: MonadState [a] m => m Bool
-isempty = state $ \case
-    x:xs -> (False, x:xs)
-    []   -> (True, [])
-
-trypop :: (Eq a, MonadState [a] m, MonadFail m) => a -> m Bool
-trypop x = do
-    e <- isempty
-    if e
-    then pure False
-    else do
-        y <- peek
-        if x == y
-        then pop >> pure True
-        else pure False
-
-left :: (Monoid w, Monad m) => RWST r w q m a -> RWST r w (q, s) m a
-left s = RWST $ \w (l, r) -> do
-    (a, l', w) <- runRWST s w l
-    pure (a, (l', r), w)
-
-right :: (Monoid w, Monad m) => RWST r w s m a -> RWST r w (q, s) m a
-right s = RWST $ \w (l, r) -> do
-    (a, r', w) <- runRWST s w r
-    pure (a, (l, r'), w)
-
-findall :: Eq a => a -> [(a, b)] -> [b]
-findall _ []                   = []
-findall x ((k, v):xs) | x == k    = v : findall x xs
-                      | otherwise = findall x xs
 
 llstep :: RWST [(Char, String)] (DList String) (String, String) [] ()
 llstep = do
@@ -105,24 +58,11 @@ lang = [
     ('S', "")
     ]
 
-splitBy :: Eq a => a -> [a] -> [[a]] 
-splitBy delimiter = foldr f [[]] 
-    where f c l@(x:xs) | c == delimiter = []:l
-                       | otherwise = (c:x):xs
--- magic, idk how it works
-
-mklang :: String -> [(Char, String)]
-mklang s = do
-    l <- filter (not . isSpace) <$> lines s
-    case l of
-        n:'-':'>':r -> do
-            r' <- splitBy '|' r
-            pure (n, r')
-        _ -> error "invalid rule"
-
 main :: IO ()
 main = do
     lns <- lines <$> getContents
     let (gram, strs) = break (==[]) lns
     let lang = mklang $ unlines gram
-    forM_ (tail strs) $ ll' lang
+    forM_ (tail strs) $ \l -> do
+        putStrLn "\n---"
+        ll' lang (filter (not . isSpace) l)
