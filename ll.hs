@@ -84,12 +84,13 @@ llsteps = do
     then do
         tell $ DList.singleton $ " (,)"
         tell $ DList.singleton $ "Success!"
-    else if le || re 
-    then do mzero
-        -- (inp, st) <- get
-        -- tell $ DList.singleton $ " (" ++ inp ++ ", " ++ st ++ ")"
-        -- tell $ DList.singleton $ "Fail :("
-    else llsteps
+    else do
+        guard $ not re 
+        llsteps
+        -- else do
+        --     (inp, st) <- get
+        --     tell $ DList.singleton $ " (" ++ inp ++ ", " ++ st ++ ")"
+        --     tell $ DList.singleton $ "Fail :("
 
 ll :: [(Char, String)] -> String -> [[String]]
 ll rs s = (DList.toList . snd) <$> evalRWST llsteps rs (s, [fst $ head rs])
